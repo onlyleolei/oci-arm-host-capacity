@@ -67,11 +67,13 @@ jobs:
           $keyFile = getenv("HOME") . "/.oci/oracle.pem";
           $configFile = getenv("HOME") . "/.oci/config";
 
+          // --- 此处配置 CPU、内存与磁盘 ---
           $shape = getenv("SECRET_SHAPE") ?: "VM.Standard.A1.Flex";
-          $ocpus = getenv("SECRET_OCPUS") ?: "4";
-          $memoryInGbs = getenv("SECRET_MEMORY_IN_GBS") ?: "24";
-          $bootVolumeSize = getenv("SECRET_BOOT_VOLUME_SIZE_IN_GBS") ?: "50";
+          $ocpus = getenv("SECRET_OCPUS") ?: "2";                 // <-- 改为 2 OCPU
+          $memoryInGbs = getenv("SECRET_MEMORY_IN_GBS") ?: "12";  // <-- 改为 12 GB 内存
+          $bootVolumeSize = getenv("SECRET_BOOT_VOLUME_SIZE_IN_GBS") ?: "50"; // 默认 50G 引导盘
           $maxInstances = getenv("SECRET_MAX_INSTANCES") ?: "1";
+
           $compartmentId = getenv("SECRET_COMPARTMENT_ID") ?: $tenancy;
           $subnetId = getenv("SECRET_SUBNET_ID") ?: "";
           $imageId = getenv("SECRET_IMAGE_ID") ?: "";
@@ -105,10 +107,8 @@ jobs:
 
           foreach ($envVars as $k => $v) {
               $cleanVal = trim(str_replace(["\r", "\n"], "", $v));
-              // .env 文件必须使用双引号包裹，并对内部双引号转义，防止空格破坏语法
               $escapedDotEnv = str_replace('"', '\"', $cleanVal);
               $dotEnvLines[] = "{$k}=\"{$escapedDotEnv}\"";
-
               $ghEnvLines[] = "{$k}={$cleanVal}";
           }
 
