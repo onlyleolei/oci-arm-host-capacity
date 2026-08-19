@@ -60,14 +60,14 @@ jobs:
           echo "Region: " . ($region ? "OK" : "MISSING") . "\n";
 
           if (empty($user) || empty($tenancy) || empty($fingerprint) || empty($region)) {
-              echo "\n[ERROR] 缺少必要参数！\n";
+              echo "\n[ERROR] 缺少必要参数！请检查配置。\n";
               exit(1);
           }
 
           $keyFile = getenv("HOME") . "/.oci/oracle.pem";
           $configFile = getenv("HOME") . "/.oci/config";
 
-          // 同时兼容 OCI_FINGERPRINT 与 OCI_KEY_FINGERPRINT
+          // 一次性覆盖注入库函数可能用到的所有变量名变体
           $envLines = [
               "OCI_USER_ID={$user}",
               "OCI_TENANCY_ID={$tenancy}",
@@ -75,6 +75,8 @@ jobs:
               "OCI_KEY_FINGERPRINT={$fingerprint}",
               "OCI_REGION={$region}",
               "OCI_KEY_FILE={$keyFile}",
+              "OCI_PRIVATE_KEY_FILENAME={$keyFile}",
+              "OCI_PRIVATE_KEY_FILE_PATH={$keyFile}",
               "OCI_CONFIG_FILE_PATH={$configFile}",
           ];
 
@@ -96,6 +98,8 @@ jobs:
           OCI_KEY_FINGERPRINT: ${{ env.OCI_KEY_FINGERPRINT }}
           OCI_REGION: ${{ env.OCI_REGION }}
           OCI_KEY_FILE: ${{ env.OCI_KEY_FILE }}
+          OCI_PRIVATE_KEY_FILENAME: ${{ env.OCI_PRIVATE_KEY_FILENAME }}
+          OCI_PRIVATE_KEY_FILE_PATH: ${{ env.OCI_PRIVATE_KEY_FILE_PATH }}
           OCI_CONFIG_FILE_PATH: ${{ env.OCI_CONFIG_FILE_PATH }}
           OCI_OCPUS: ${{ secrets.OCI_OCPUS }}
           OCI_MEMORY_IN_GBS: ${{ secrets.OCI_MEMORY_IN_GBS }}
