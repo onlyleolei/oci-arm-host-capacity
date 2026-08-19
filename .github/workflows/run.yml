@@ -26,16 +26,25 @@ jobs:
           echo "${{ secrets.OCI_CONFIG }}" > ~/.oci/config
           echo "${{ secrets.OCI_PRIVATE_KEY }}" > ~/.oci/oracle.pem
           echo "${{ secrets.OCI_SSH_PUBLIC_KEY }}" > ~/.oci/id_rsa.pub
-          
-          # 强制替换 config 文本中的 key_file 行
           sed -i '/key_file/c\key_file=/home/runner/.oci/oracle.pem' ~/.oci/config
           chmod 600 ~/.oci/oracle.pem
 
-      - name: Setup Env file
+      - name: Auto Generate Env File
         run: |
-          # 建立全新 .env 配置文件，直接写入正确路径
-          echo "OCI_CONFIG_FILE_PATH=/home/runner/.oci/config" > .env
-          echo "OCI_KEY_FILE=/home/runner/.oci/oracle.pem" >> .env
+          # 从 OCI_CONFIG 中提取必要参数补全到 .env
+          REGION=$(grep -i '^region' ~/.oci/config | cut -d'=' -f2 | tr -d ' \r\n')
+          USER_ID=$(grep -i '^user' ~/.oci/config | cut -d'=' -f2 | tr -d ' \r\n')
+          TENANCY_ID=$(grep -i '^tenancy' ~/.oci/config | cut -d'=' -f2 | tr -d ' \r\n')
+          FINGERPRINT=$(grep -i '^fingerprint' ~/.oci/config | cut -d'=' -f2 | tr -d ' \r\n')
+
+          cat <<EOF > .env
+          OCI_REGION=$REGION
+          OCI_USER_ID=$USER_ID
+          OCI_TENANCY_ID=$TENANCY_ID
+          OCI_FINGERPRINT=$FINGERPRINT
+          OCI_KEY_FILE=/home/runner/.oci/oracle.pem
+          OCI_CONFIG_FILE_PATH=/home/runner/.oci/config
+          EOF
 
       - name: Execute capacity check
         env:
