@@ -23,21 +23,20 @@ jobs:
       - name: Create OCI config and keys
         run: |
           mkdir -p ~/.oci
-          echo "${{ secrets.OCI_CONFIG }}" > ~/.oci/config
-          echo "${{ secrets.OCI_PRIVATE_KEY }}" > ~/.oci/oracle.pem
-          echo "${{ secrets.OCI_SSH_PUBLIC_KEY }}" > ~/.oci/id_rsa.pub
+          echo "${{ secrets.OCI_CONFIG }}" | tr -d '\r' > ~/.oci/config
+          echo "${{ secrets.OCI_PRIVATE_KEY }}" | tr -d '\r' > ~/.oci/oracle.pem
+          echo "${{ secrets.OCI_SSH_PUBLIC_KEY }}" | tr -d '\r' > ~/.oci/id_rsa.pub
           chmod 600 ~/.oci/oracle.pem
 
       - name: Parse Config and Generate .env
+        env:
+          SECRET_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
         run: |
           cat << 'EOF' > parse.php
           <?php
           $configPath = getenv("HOME") . "/.oci/config";
-          if (!file_exists($configPath)) {
-              echo "Error: Config file not found!\n";
-              exit(1);
-          }
-          $content = file_get_contents($configPath);
+          $content = file_exists($configPath) ? file_get_contents($configPath) : "";
+          $content = str_replace("\r", "", $content);
 
           function getVal($pattern, $text) {
               if (preg_match($pattern, $text, $m)) {
@@ -51,18 +50,33 @@ jobs:
           $fingerprint = getVal("/^[ \t]*fingerprint[ \t]*=[ \t]*(.+)$/m", $content);
           $region = getVal("/^[ \t]*region[ \t]*=[ \t]*(.+)$/m", $content);
 
+          if (empty($fingerprint) && !empty(getenv("SECRET_FINGERPRINT"))) {
+              $fingerprint = trim(str_replace("\r", "", getenv("SECRET_FINGERPRINT")));
+          }
+
           echo "User: " . ($user ? "OK" : "MISSING") . "\n";
           echo "Tenancy: " . ($tenancy ? "OK" : "MISSING") . "\n";
           echo "Fingerprint: " . ($fingerprint ? "OK" : "MISSING") . "\n";
           echo "Region: " . ($region ? "OK" : "MISSING") . "\n";
 
-          $envContent = "OCI_USER_ID={$user}\n"
-                      . "OCI_TENANCY_ID={$tenancy}\n"
-                      . "OCI_FINGERPRINT={$fingerprint}\n"
-                      . "OCI_REGION={$region}\n"
-                      . "OCI_KEY_FILE=" . getenv("HOME") . "/.oci/oracle.pem\n"
-                      . "OCI_CONFIG_FILE_PATH=" . getenv("HOME") . "/.oci/config\n";
+          if (empty($user) || empty($tenancy) || empty($fingerprint) || empty($region)) {
+              echo "\n[ERROR] 缺少必要参数！\n";
+              exit(1);
+          }
 
+          $keyFile = getenv("HOME") . "/.oci/oracle.pem";
+          $configFile = getenv("HOME") . "/.oci/config";
+
+          $envLines = [
+              "OCI_USER_ID={$user}",
+              "OCI_TENANCY_ID={$tenancy}",
+              "OCI_FINGERPRINT={$fingerprint}",
+              "OCI_REGION={$region}",
+              "OCI_KEY_FILE={$keyFile}",
+              "OCI_CONFIG_FILE_PATH={$configFile}",
+          ];
+
+          $envContent = implode("\n", $envLines) . "\n";
           file_put_contents(".env", $envContent);
 
           $ghEnv = getenv("GITHUB_ENV");
