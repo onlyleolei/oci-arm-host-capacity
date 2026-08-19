@@ -26,29 +26,32 @@ jobs:
           echo "${{ secrets.OCI_CONFIG }}" > ~/.oci/config
           echo "${{ secrets.OCI_PRIVATE_KEY }}" > ~/.oci/oracle.pem
           echo "${{ secrets.OCI_SSH_PUBLIC_KEY }}" > ~/.oci/id_rsa.pub
-          sed -i '/key_file/c\key_file=/home/runner/.oci/oracle.pem' ~/.oci/config
           chmod 600 ~/.oci/oracle.pem
 
-      - name: Auto Generate Env File
+      - name: Parse Config and Generate Env File
         run: |
-          # 从 OCI_CONFIG 中提取必要参数补全到 .env
-          REGION=$(grep -i '^region' ~/.oci/config | cut -d'=' -f2 | tr -d ' \r\n')
-          USER_ID=$(grep -i '^user' ~/.oci/config | cut -d'=' -f2 | tr -d ' \r\n')
-          TENANCY_ID=$(grep -i '^tenancy' ~/.oci/config | cut -d'=' -f2 | tr -d ' \r\n')
-          FINGERPRINT=$(grep -i '^fingerprint' ~/.oci/config | cut -d'=' -f2 | tr -d ' \r\n')
+          # 兼容任意等号空格格式，精准提取 OCI 核心四大参数
+          USER_ID=$(awk -F'=' '/^[[:space:]]*user[[:space:]]*=/ {gsub(/[ \t\r\n]/, "", $2); print $2}' ~/.oci/config)
+          TENANCY_ID=$(awk -F'=' '/^[[:space:]]*tenancy[[:space:]]*=/ {gsub(/[ \t\r\n]/, "", $2); print $2}' ~/.oci/config)
+          FINGERPRINT=$(awk -F'=' '/^[[:space:]]*fingerprint[[:space:]]*=/ {gsub(/[ \t\r\n]/, "", $2); print $2}' ~/.oci/config)
+          REGION=$(awk -F'=' '/^[[:space:]]*region[[:space:]]*=/ {gsub(/[ \t\r\n]/, "", $2); print $2}' ~/.oci/config)
 
           cat <<EOF > .env
-          OCI_REGION=$REGION
           OCI_USER_ID=$USER_ID
           OCI_TENANCY_ID=$TENANCY_ID
           OCI_FINGERPRINT=$FINGERPRINT
+          OCI_REGION=$REGION
           OCI_KEY_FILE=/home/runner/.oci/oracle.pem
           OCI_CONFIG_FILE_PATH=/home/runner/.oci/config
           EOF
+
+          echo "解析得到的 Region: $REGION"
+          echo "解析得到的 Fingerprint 长度: ${#FINGERPRINT}"
 
       - name: Execute capacity check
         env:
           OCI_OCPUS: ${{ secrets.OCI_OCPUS }}
           OCI_MEMORY_IN_GBS: ${{ secrets.OCI_MEMORY_IN_GBS }}
           OCI_BOOT_VOLUME_SIZE_IN_GBS: ${{ secrets.OCI_BOOT_VOLUME_SIZE_IN_GBS }}
+          OCI_SSH_PUBLIC_KEY: ${{ secrets.OCI_SSH_PUBLIC_KEY }}
         run: php index.php
