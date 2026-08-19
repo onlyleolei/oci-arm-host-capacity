@@ -30,45 +30,47 @@ jobs:
 
       - name: Parse Config and Generate .env
         run: |
-          php -r '
-            $configPath = getenv("HOME") . "/.oci/config";
-            if (!file_exists($configPath)) {
-                echo "Error: Config file not found!\n";
-                exit(1);
-            }
-            $content = file_get_contents($configPath);
+          cat << 'EOF' > parse.php
+          <?php
+          $configPath = getenv("HOME") . "/.oci/config";
+          if (!file_exists($configPath)) {
+              echo "Error: Config file not found!\n";
+              exit(1);
+          }
+          $content = file_get_contents($configPath);
 
-            function getVal($pattern, $text) {
-                if (preg_match($pattern, $text, $m)) {
-                    return trim($m[1], " \t\n\r\"'\v\0");
-                }
-                return "";
-            }
+          function getVal($pattern, $text) {
+              if (preg_match($pattern, $text, $m)) {
+                  return trim($m[1], " \t\n\r\"'\v\0");
+              }
+              return "";
+          }
 
-            $user = getVal("/^[ \t]*user[ \t]*=[ \t]*(.+)$/m", $content);
-            $tenancy = getVal("/^[ \t]*tenancy[ \t]*=[ \t]*(.+)$/m", $content);
-            $fingerprint = getVal("/^[ \t]*fingerprint[ \t]*=[ \t]*(.+)$/m", $content);
-            $region = getVal("/^[ \t]*region[ \t]*=[ \t]*(.+)$/m", $content);
+          $user = getVal("/^[ \t]*user[ \t]*=[ \t]*(.+)$/m", $content);
+          $tenancy = getVal("/^[ \t]*tenancy[ \t]*=[ \t]*(.+)$/m", $content);
+          $fingerprint = getVal("/^[ \t]*fingerprint[ \t]*=[ \t]*(.+)$/m", $content);
+          $region = getVal("/^[ \t]*region[ \t]*=[ \t]*(.+)$/m", $content);
 
-            echo "User: " . ($user ? "OK" : "MISSING") . "\n";
-            echo "Tenancy: " . ($tenancy ? "OK" : "MISSING") . "\n";
-            echo "Fingerprint: " . ($fingerprint ? "OK" : "MISSING") . "\n";
-            echo "Region: " . ($region ? "OK" : "MISSING") . "\n";
+          echo "User: " . ($user ? "OK" : "MISSING") . "\n";
+          echo "Tenancy: " . ($tenancy ? "OK" : "MISSING") . "\n";
+          echo "Fingerprint: " . ($fingerprint ? "OK" : "MISSING") . "\n";
+          echo "Region: " . ($region ? "OK" : "MISSING") . "\n";
 
-            $envContent = "OCI_USER_ID={$user}\n"
-                        . "OCI_TENANCY_ID={$tenancy}\n"
-                        . "OCI_FINGERPRINT={$fingerprint}\n"
-                        . "OCI_REGION={$region}\n"
-                        . "OCI_KEY_FILE=" . getenv("HOME") . "/.oci/oracle.pem\n"
-                        . "OCI_CONFIG_FILE_PATH=" . getenv("HOME") . "/.oci/config\n";
+          $envContent = "OCI_USER_ID={$user}\n"
+                      . "OCI_TENANCY_ID={$tenancy}\n"
+                      . "OCI_FINGERPRINT={$fingerprint}\n"
+                      . "OCI_REGION={$region}\n"
+                      . "OCI_KEY_FILE=" . getenv("HOME") . "/.oci/oracle.pem\n"
+                      . "OCI_CONFIG_FILE_PATH=" . getenv("HOME") . "/.oci/config\n";
 
-            file_put_contents(".env", $envContent);
-            
-            $ghEnv = getenv("GITHUB_ENV");
-            if ($ghEnv) {
-                file_put_contents($ghEnv, $envContent, FILE_APPEND);
-            }
-          '
+          file_put_contents(".env", $envContent);
+
+          $ghEnv = getenv("GITHUB_ENV");
+          if ($ghEnv) {
+              file_put_contents($ghEnv, $envContent, FILE_APPEND);
+          }
+          EOF
+          php parse.php
 
       - name: Execute capacity check
         env:
