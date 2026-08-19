@@ -67,7 +67,6 @@ jobs:
           $keyFile = getenv("HOME") . "/.oci/oracle.pem";
           $configFile = getenv("HOME") . "/.oci/config";
 
-          // 核心参数兜底（带默认值，彻底防止 getenv() 返回 false）
           $shape = getenv("SECRET_SHAPE") ?: "VM.Standard.A1.Flex";
           $ocpus = getenv("SECRET_OCPUS") ?: "4";
           $memoryInGbs = getenv("SECRET_MEMORY_IN_GBS") ?: "24";
@@ -101,17 +100,23 @@ jobs:
               "OCI_SSH_PUBLIC_KEY" => (string)$sshPublicKey,
           ];
 
-          $envLines = [];
+          $dotEnvLines = [];
+          $ghEnvLines = [];
+
           foreach ($envVars as $k => $v) {
-              $envLines[] = "{$k}={$v}";
+              $cleanVal = trim(str_replace(["\r", "\n"], "", $v));
+              // .env 文件必须使用双引号包裹，并对内部双引号转义，防止空格破坏语法
+              $escapedDotEnv = str_replace('"', '\"', $cleanVal);
+              $dotEnvLines[] = "{$k}=\"{$escapedDotEnv}\"";
+
+              $ghEnvLines[] = "{$k}={$cleanVal}";
           }
 
-          $envContent = implode("\n", $envLines) . "\n";
-          file_put_contents(".env", $envContent);
+          file_put_contents(".env", implode("\n", $dotEnvLines) . "\n");
 
           $ghEnv = getenv("GITHUB_ENV");
           if ($ghEnv) {
-              file_put_contents($ghEnv, $envContent, FILE_APPEND);
+              file_put_contents($ghEnv, implode("\n", $ghEnvLines) . "\n", FILE_APPEND);
           }
           EOF
           php parse.php
