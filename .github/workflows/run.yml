@@ -31,6 +31,10 @@ jobs:
       - name: Parse Config and Export Env
         env:
           SECRET_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
+          SECRET_COMPARTMENT_ID: ${{ secrets.OCI_COMPARTMENT_ID }}
+          SECRET_SUBNET_ID: ${{ secrets.OCI_SUBNET_ID }}
+          SECRET_IMAGE_ID: ${{ secrets.OCI_IMAGE_ID }}
+          SECRET_AVAILABILITY_DOMAIN: ${{ secrets.OCI_AVAILABILITY_DOMAIN }}
         run: |
           cat << 'EOF' > parse.php
           <?php
@@ -54,31 +58,35 @@ jobs:
               $fingerprint = trim(str_replace("\r", "", getenv("SECRET_FINGERPRINT")));
           }
 
-          echo "User: " . ($user ? "OK" : "MISSING") . "\n";
-          echo "Tenancy: " . ($tenancy ? "OK" : "MISSING") . "\n";
-          echo "Fingerprint: " . ($fingerprint ? "OK" : "MISSING") . "\n";
-          echo "Region: " . ($region ? "OK" : "MISSING") . "\n";
-
-          if (empty($user) || empty($tenancy) || empty($fingerprint) || empty($region)) {
-              echo "\n[ERROR] 缺少必要参数！请检查配置。\n";
-              exit(1);
-          }
+          $compartmentId = getenv("SECRET_COMPARTMENT_ID") ?: $tenancy;
+          $subnetId = getenv("SECRET_SUBNET_ID") ?: "";
+          $imageId = getenv("SECRET_IMAGE_ID") ?: "";
+          $availabilityDomain = getenv("SECRET_AVAILABILITY_DOMAIN") ?: "";
 
           $keyFile = getenv("HOME") . "/.oci/oracle.pem";
           $configFile = getenv("HOME") . "/.oci/config";
 
-          // 一次性覆盖注入库函数可能用到的所有变量名变体
-          $envLines = [
-              "OCI_USER_ID={$user}",
-              "OCI_TENANCY_ID={$tenancy}",
-              "OCI_FINGERPRINT={$fingerprint}",
-              "OCI_KEY_FINGERPRINT={$fingerprint}",
-              "OCI_REGION={$region}",
-              "OCI_KEY_FILE={$keyFile}",
-              "OCI_PRIVATE_KEY_FILENAME={$keyFile}",
-              "OCI_PRIVATE_KEY_FILE_PATH={$keyFile}",
-              "OCI_CONFIG_FILE_PATH={$configFile}",
+          // 强制所有值转为 string，防止 getenv 返回 bool(false)
+          $envVars = [
+              "OCI_USER_ID" => (string)$user,
+              "OCI_TENANCY_ID" => (string)$tenancy,
+              "OCI_FINGERPRINT" => (string)$fingerprint,
+              "OCI_KEY_FINGERPRINT" => (string)$fingerprint,
+              "OCI_REGION" => (string)$region,
+              "OCI_KEY_FILE" => (string)$keyFile,
+              "OCI_PRIVATE_KEY_FILENAME" => (string)$keyFile,
+              "OCI_PRIVATE_KEY_FILE_PATH" => (string)$keyFile,
+              "OCI_CONFIG_FILE_PATH" => (string)$configFile,
+              "OCI_COMPARTMENT_ID" => (string)$compartmentId,
+              "OCI_SUBNET_ID" => (string)$subnetId,
+              "OCI_IMAGE_ID" => (string)$imageId,
+              "OCI_AVAILABILITY_DOMAIN" => (string)$availabilityDomain,
           ];
+
+          $envLines = [];
+          foreach ($envVars as $k => $v) {
+              $envLines[] = "{$k}={$v}";
+          }
 
           $envContent = implode("\n", $envLines) . "\n";
           file_put_contents(".env", $envContent);
@@ -101,6 +109,10 @@ jobs:
           OCI_PRIVATE_KEY_FILENAME: ${{ env.OCI_PRIVATE_KEY_FILENAME }}
           OCI_PRIVATE_KEY_FILE_PATH: ${{ env.OCI_PRIVATE_KEY_FILE_PATH }}
           OCI_CONFIG_FILE_PATH: ${{ env.OCI_CONFIG_FILE_PATH }}
+          OCI_COMPARTMENT_ID: ${{ env.OCI_COMPARTMENT_ID }}
+          OCI_SUBNET_ID: ${{ env.OCI_SUBNET_ID }}
+          OCI_IMAGE_ID: ${{ env.OCI_IMAGE_ID }}
+          OCI_AVAILABILITY_DOMAIN: ${{ env.OCI_AVAILABILITY_DOMAIN }}
           OCI_OCPUS: ${{ secrets.OCI_OCPUS }}
           OCI_MEMORY_IN_GBS: ${{ secrets.OCI_MEMORY_IN_GBS }}
           OCI_BOOT_VOLUME_SIZE_IN_GBS: ${{ secrets.OCI_BOOT_VOLUME_SIZE_IN_GBS }}
