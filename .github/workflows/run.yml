@@ -26,6 +26,15 @@ jobs:
           echo "${{ secrets.OCI_CONFIG }}" > ~/.oci/config
           echo "${{ secrets.OCI_PRIVATE_KEY }}" > ~/.oci/oracle.pem
           echo "${{ secrets.OCI_SSH_PUBLIC_KEY }}" > ~/.oci/id_rsa.pub
+          # 自动修正 config 文件中的私钥路径
+          sed -i 's|/root/\.oci/|/home/runner/.oci/|g' ~/.oci/config
+          chmod 600 ~/.oci/oracle.pem
+
+      - name: Setup Env file
+        run: |
+          if [ -f .env.example ]; then
+            cp .env.example .env
+          fi
 
       - name: Execute capacity check
         env:
