@@ -26,8 +26,8 @@ jobs:
           echo "${{ secrets.OCI_CONFIG }}" > ~/.oci/config
           echo "${{ secrets.OCI_PRIVATE_KEY }}" > ~/.oci/oracle.pem
           echo "${{ secrets.OCI_SSH_PUBLIC_KEY }}" > ~/.oci/id_rsa.pub
-          # 自动修正 config 文件中的私钥路径
-          sed -i 's|/root/\.oci/|/home/runner/.oci/|g' ~/.oci/config
+          # 强制将任何 key_file 路径重写为 Linux 云端的绝对路径
+          sed -i 's|^key_file=.*|key_file=/home/runner/.oci/oracle.pem|g' ~/.oci/config
           chmod 600 ~/.oci/oracle.pem
 
       - name: Setup Env file
