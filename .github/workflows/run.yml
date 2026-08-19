@@ -28,25 +28,39 @@ jobs:
           echo "${{ secrets.OCI_SSH_PUBLIC_KEY }}" > ~/.oci/id_rsa.pub
           chmod 600 ~/.oci/oracle.pem
 
-      - name: Parse Config and Generate Env File
+      - name: Parse Config with PHP
         run: |
-          # 兼容任意等号空格格式，精准提取 OCI 核心四大参数
-          USER_ID=$(awk -F'=' '/^[[:space:]]*user[[:space:]]*=/ {gsub(/[ \t\r\n]/, "", $2); print $2}' ~/.oci/config)
-          TENANCY_ID=$(awk -F'=' '/^[[:space:]]*tenancy[[:space:]]*=/ {gsub(/[ \t\r\n]/, "", $2); print $2}' ~/.oci/config)
-          FINGERPRINT=$(awk -F'=' '/^[[:space:]]*fingerprint[[:space:]]*=/ {gsub(/[ \t\r\n]/, "", $2); print $2}' ~/.oci/config)
-          REGION=$(awk -F'=' '/^[[:space:]]*region[[:space:]]*=/ {gsub(/[ \t\r\n]/, "", $2); print $2}' ~/.oci/config)
+          php -r '
+            $configPath = getenv("HOME") . "/.oci/config";
+            $keyPath = getenv("HOME") . "/.oci/oracle.pem";
+            $githubEnv = getenv("GITHUB_ENV");
 
-          cat <<EOF > .env
-          OCI_USER_ID=$USER_ID
-          OCI_TENANCY_ID=$TENANCY_ID
-          OCI_FINGERPRINT=$FINGERPRINT
-          OCI_REGION=$REGION
-          OCI_KEY_FILE=/home/runner/.oci/oracle.pem
-          OCI_CONFIG_FILE_PATH=/home/runner/.oci/config
-          EOF
+            if (!file_exists($configPath)) {
+                echo "Error: Config file not found!\n";
+                exit(1);
+            }
 
-          echo "解析得到的 Region: $REGION"
-          echo "解析得到的 Fingerprint 长度: ${#FINGERPRINT}"
+            $ini = parse_ini_file($configPath);
+            $mapping = [
+                "user" => "OCI_USER_ID",
+                "tenancy" => "OCI_TENANCY_ID",
+                "fingerprint" => "OCI_FINGERPRINT",
+                "region" => "OCI_REGION"
+            ];
+
+            foreach ($mapping as $iniKey => $envKey) {
+                if (isset($ini[$iniKey]) && !empty(trim($ini[$iniKey]))) {
+                    $val = trim($ini[$iniKey]);
+                    file_put_contents($githubEnv, "{$envKey}={$val}\n", FILE_APPEND);
+                    echo "Loaded {$envKey}\n";
+                } else {
+                    echo "Warning: {$iniKey} missing in config!\n";
+                }
+            }
+
+            file_put_contents($githubEnv, "OCI_KEY_FILE={$keyPath}\n", FILE_APPEND);
+            file_put_contents($githubEnv, "OCI_CONFIG_FILE_PATH={$configPath}\n", FILE_APPEND);
+          '
 
       - name: Execute capacity check
         env:
