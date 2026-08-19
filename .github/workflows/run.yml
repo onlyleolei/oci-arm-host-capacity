@@ -28,38 +28,46 @@ jobs:
           echo "${{ secrets.OCI_SSH_PUBLIC_KEY }}" > ~/.oci/id_rsa.pub
           chmod 600 ~/.oci/oracle.pem
 
-      - name: Parse Config with PHP
+      - name: Parse Config and Generate .env
         run: |
           php -r '
             $configPath = getenv("HOME") . "/.oci/config";
-            $keyPath = getenv("HOME") . "/.oci/oracle.pem";
-            $githubEnv = getenv("GITHUB_ENV");
-
             if (!file_exists($configPath)) {
                 echo "Error: Config file not found!\n";
                 exit(1);
             }
+            $content = file_get_contents($configPath);
 
-            $ini = parse_ini_file($configPath);
-            $mapping = [
-                "user" => "OCI_USER_ID",
-                "tenancy" => "OCI_TENANCY_ID",
-                "fingerprint" => "OCI_FINGERPRINT",
-                "region" => "OCI_REGION"
-            ];
-
-            foreach ($mapping as $iniKey => $envKey) {
-                if (isset($ini[$iniKey]) && !empty(trim($ini[$iniKey]))) {
-                    $val = trim($ini[$iniKey]);
-                    file_put_contents($githubEnv, "{$envKey}={$val}\n", FILE_APPEND);
-                    echo "Loaded {$envKey}\n";
-                } else {
-                    echo "Warning: {$iniKey} missing in config!\n";
+            function getVal($pattern, $text) {
+                if (preg_match($pattern, $text, $m)) {
+                    return trim($m[1], " \t\n\r\"'\v\0");
                 }
+                return "";
             }
 
-            file_put_contents($githubEnv, "OCI_KEY_FILE={$keyPath}\n", FILE_APPEND);
-            file_put_contents($githubEnv, "OCI_CONFIG_FILE_PATH={$configPath}\n", FILE_APPEND);
+            $user = getVal("/^[ \t]*user[ \t]*=[ \t]*(.+)$/m", $content);
+            $tenancy = getVal("/^[ \t]*tenancy[ \t]*=[ \t]*(.+)$/m", $content);
+            $fingerprint = getVal("/^[ \t]*fingerprint[ \t]*=[ \t]*(.+)$/m", $content);
+            $region = getVal("/^[ \t]*region[ \t]*=[ \t]*(.+)$/m", $content);
+
+            echo "User: " . ($user ? "OK" : "MISSING") . "\n";
+            echo "Tenancy: " . ($tenancy ? "OK" : "MISSING") . "\n";
+            echo "Fingerprint: " . ($fingerprint ? "OK" : "MISSING") . "\n";
+            echo "Region: " . ($region ? "OK" : "MISSING") . "\n";
+
+            $envContent = "OCI_USER_ID={$user}\n"
+                        . "OCI_TENANCY_ID={$tenancy}\n"
+                        . "OCI_FINGERPRINT={$fingerprint}\n"
+                        . "OCI_REGION={$region}\n"
+                        . "OCI_KEY_FILE=" . getenv("HOME") . "/.oci/oracle.pem\n"
+                        . "OCI_CONFIG_FILE_PATH=" . getenv("HOME") . "/.oci/config\n";
+
+            file_put_contents(".env", $envContent);
+            
+            $ghEnv = getenv("GITHUB_ENV");
+            if ($ghEnv) {
+                file_put_contents($ghEnv, $envContent, FILE_APPEND);
+            }
           '
 
       - name: Execute capacity check
