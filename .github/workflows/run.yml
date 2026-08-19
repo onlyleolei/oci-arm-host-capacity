@@ -28,7 +28,7 @@ jobs:
           echo "${{ secrets.OCI_SSH_PUBLIC_KEY }}" | tr -d '\r' > ~/.oci/id_rsa.pub
           chmod 600 ~/.oci/oracle.pem
 
-      - name: Parse Config and Generate .env
+      - name: Parse Config and Export Env
         env:
           SECRET_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
         run: |
@@ -67,10 +67,12 @@ jobs:
           $keyFile = getenv("HOME") . "/.oci/oracle.pem";
           $configFile = getenv("HOME") . "/.oci/config";
 
+          // 同时兼容 OCI_FINGERPRINT 与 OCI_KEY_FINGERPRINT
           $envLines = [
               "OCI_USER_ID={$user}",
               "OCI_TENANCY_ID={$tenancy}",
               "OCI_FINGERPRINT={$fingerprint}",
+              "OCI_KEY_FINGERPRINT={$fingerprint}",
               "OCI_REGION={$region}",
               "OCI_KEY_FILE={$keyFile}",
               "OCI_CONFIG_FILE_PATH={$configFile}",
@@ -88,6 +90,13 @@ jobs:
 
       - name: Execute capacity check
         env:
+          OCI_USER_ID: ${{ env.OCI_USER_ID }}
+          OCI_TENANCY_ID: ${{ env.OCI_TENANCY_ID }}
+          OCI_FINGERPRINT: ${{ env.OCI_FINGERPRINT }}
+          OCI_KEY_FINGERPRINT: ${{ env.OCI_KEY_FINGERPRINT }}
+          OCI_REGION: ${{ env.OCI_REGION }}
+          OCI_KEY_FILE: ${{ env.OCI_KEY_FILE }}
+          OCI_CONFIG_FILE_PATH: ${{ env.OCI_CONFIG_FILE_PATH }}
           OCI_OCPUS: ${{ secrets.OCI_OCPUS }}
           OCI_MEMORY_IN_GBS: ${{ secrets.OCI_MEMORY_IN_GBS }}
           OCI_BOOT_VOLUME_SIZE_IN_GBS: ${{ secrets.OCI_BOOT_VOLUME_SIZE_IN_GBS }}
