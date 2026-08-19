@@ -35,6 +35,12 @@ jobs:
           SECRET_SUBNET_ID: ${{ secrets.OCI_SUBNET_ID }}
           SECRET_IMAGE_ID: ${{ secrets.OCI_IMAGE_ID }}
           SECRET_AVAILABILITY_DOMAIN: ${{ secrets.OCI_AVAILABILITY_DOMAIN }}
+          SECRET_SHAPE: ${{ secrets.OCI_SHAPE }}
+          SECRET_OCPUS: ${{ secrets.OCI_OCPUS }}
+          SECRET_MEMORY_IN_GBS: ${{ secrets.OCI_MEMORY_IN_GBS }}
+          SECRET_BOOT_VOLUME_SIZE_IN_GBS: ${{ secrets.OCI_BOOT_VOLUME_SIZE_IN_GBS }}
+          SECRET_SSH_PUBLIC_KEY: ${{ secrets.OCI_SSH_PUBLIC_KEY }}
+          SECRET_MAX_INSTANCES: ${{ secrets.OCI_MAX_INSTANCES }}
         run: |
           cat << 'EOF' > parse.php
           <?php
@@ -58,15 +64,21 @@ jobs:
               $fingerprint = trim(str_replace("\r", "", getenv("SECRET_FINGERPRINT")));
           }
 
+          $keyFile = getenv("HOME") . "/.oci/oracle.pem";
+          $configFile = getenv("HOME") . "/.oci/config";
+
+          // 核心参数兜底（带默认值，彻底防止 getenv() 返回 false）
+          $shape = getenv("SECRET_SHAPE") ?: "VM.Standard.A1.Flex";
+          $ocpus = getenv("SECRET_OCPUS") ?: "4";
+          $memoryInGbs = getenv("SECRET_MEMORY_IN_GBS") ?: "24";
+          $bootVolumeSize = getenv("SECRET_BOOT_VOLUME_SIZE_IN_GBS") ?: "50";
+          $maxInstances = getenv("SECRET_MAX_INSTANCES") ?: "1";
           $compartmentId = getenv("SECRET_COMPARTMENT_ID") ?: $tenancy;
           $subnetId = getenv("SECRET_SUBNET_ID") ?: "";
           $imageId = getenv("SECRET_IMAGE_ID") ?: "";
           $availabilityDomain = getenv("SECRET_AVAILABILITY_DOMAIN") ?: "";
+          $sshPublicKey = getenv("SECRET_SSH_PUBLIC_KEY") ?: "";
 
-          $keyFile = getenv("HOME") . "/.oci/oracle.pem";
-          $configFile = getenv("HOME") . "/.oci/config";
-
-          // 强制所有值转为 string，防止 getenv 返回 bool(false)
           $envVars = [
               "OCI_USER_ID" => (string)$user,
               "OCI_TENANCY_ID" => (string)$tenancy,
@@ -81,6 +93,12 @@ jobs:
               "OCI_SUBNET_ID" => (string)$subnetId,
               "OCI_IMAGE_ID" => (string)$imageId,
               "OCI_AVAILABILITY_DOMAIN" => (string)$availabilityDomain,
+              "OCI_SHAPE" => (string)$shape,
+              "OCI_OCPUS" => (string)$ocpus,
+              "OCI_MEMORY_IN_GBS" => (string)$memoryInGbs,
+              "OCI_BOOT_VOLUME_SIZE_IN_GBS" => (string)$bootVolumeSize,
+              "OCI_MAX_INSTANCES" => (string)$maxInstances,
+              "OCI_SSH_PUBLIC_KEY" => (string)$sshPublicKey,
           ];
 
           $envLines = [];
@@ -99,22 +117,4 @@ jobs:
           php parse.php
 
       - name: Execute capacity check
-        env:
-          OCI_USER_ID: ${{ env.OCI_USER_ID }}
-          OCI_TENANCY_ID: ${{ env.OCI_TENANCY_ID }}
-          OCI_FINGERPRINT: ${{ env.OCI_FINGERPRINT }}
-          OCI_KEY_FINGERPRINT: ${{ env.OCI_KEY_FINGERPRINT }}
-          OCI_REGION: ${{ env.OCI_REGION }}
-          OCI_KEY_FILE: ${{ env.OCI_KEY_FILE }}
-          OCI_PRIVATE_KEY_FILENAME: ${{ env.OCI_PRIVATE_KEY_FILENAME }}
-          OCI_PRIVATE_KEY_FILE_PATH: ${{ env.OCI_PRIVATE_KEY_FILE_PATH }}
-          OCI_CONFIG_FILE_PATH: ${{ env.OCI_CONFIG_FILE_PATH }}
-          OCI_COMPARTMENT_ID: ${{ env.OCI_COMPARTMENT_ID }}
-          OCI_SUBNET_ID: ${{ env.OCI_SUBNET_ID }}
-          OCI_IMAGE_ID: ${{ env.OCI_IMAGE_ID }}
-          OCI_AVAILABILITY_DOMAIN: ${{ env.OCI_AVAILABILITY_DOMAIN }}
-          OCI_OCPUS: ${{ secrets.OCI_OCPUS }}
-          OCI_MEMORY_IN_GBS: ${{ secrets.OCI_MEMORY_IN_GBS }}
-          OCI_BOOT_VOLUME_SIZE_IN_GBS: ${{ secrets.OCI_BOOT_VOLUME_SIZE_IN_GBS }}
-          OCI_SSH_PUBLIC_KEY: ${{ secrets.OCI_SSH_PUBLIC_KEY }}
         run: php index.php
