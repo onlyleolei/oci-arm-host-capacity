@@ -69,8 +69,8 @@ jobs:
 
           // --- 此处配置 CPU、内存与磁盘 ---
           $shape = getenv("SECRET_SHAPE") ?: "VM.Standard.A1.Flex";
-          $ocpus = getenv("SECRET_OCPUS") ?: "2";                 // <-- 改为 2 OCPU
-          $memoryInGbs = getenv("SECRET_MEMORY_IN_GBS") ?: "12";  // <-- 改为 12 GB 内存
+          $ocpus = getenv("SECRET_OCPUS") ?: "1";                 // <-- 改为 2 OCPU
+          $memoryInGbs = getenv("SECRET_MEMORY_IN_GBS") ?: "6";  // <-- 改为 12 GB 内存
           $bootVolumeSize = getenv("SECRET_BOOT_VOLUME_SIZE_IN_GBS") ?: "50"; // 默认 50G 引导盘
           $maxInstances = getenv("SECRET_MAX_INSTANCES") ?: "1";
 
